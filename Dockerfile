@@ -2,12 +2,14 @@
 # docker build -t minimal-cell-img .
 # docker run -it --name minimal-cell-cont minimal-cell-img
 FROM continuumio/miniconda3
+SHELL ["/bin/bash", "--login", "-c"]
 
 # 非対話モードに設定（必要に応じて）
 ENV DEBIAN_FRONTEND=noninteractive
 
 # 作業ディレクトリの作成
 WORKDIR /root/project
+
 # install build tools
 RUN apt-get update && apt-get install -y \
     build-essential \
@@ -34,6 +36,11 @@ RUN echo "export LD_LIBRARY_PATH=/opt/conda/envs/minimal-cell/lib:$LD_LIBRARY_PA
 # Gitリポジトリをクローン
 RUN git clone https://github.com/hishidagit/Minimal_Cell_his.git && \
     git clone https://github.com/hishidagit/Lattice_Microbes_his.git
+
+WORKDIR /root/project/Minimal_Cell_his
+RUN conda activate minimal-cell && \
+    source ./build_lm.sh && \
+    source ./install_odecell.sh
 
 # コンテナ起動時はbashを起動
 CMD ["/bin/bash"]
