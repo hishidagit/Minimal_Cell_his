@@ -23,3 +23,5 @@ conda install -c anaconda mpi4py
 
 
 pip install .
+
+cd ../

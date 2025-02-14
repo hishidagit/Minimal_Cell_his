@@ -18,3 +18,5 @@ cmake -S /root/project/Lattice_Microbes_his/src -B . \
 #  -DOPT_PYTHON=OFF
 make VERBOSE=0 
 make install
+
+cd ../
