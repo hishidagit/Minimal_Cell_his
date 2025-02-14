@@ -7,7 +7,7 @@ export PATH=/usr/bin:/usr/local/bin:$PATH
 export LD=/usr/bin/ld
 # もし CONDA_BUILD_SYSROOT などがセットされていれば外す
 unset CONDA_BUILD_SYSROOT
-cmake -S /root/project/Lattice_Microbes/src -B . \
+cmake -S /root/project/Lattice_Microbes_his/src -B . \
   -D MPD_GLOBAL_T_MATRIX=True \
   -D MPD_GLOBAL_R_MATRIX=True \
   -DCMAKE_C_COMPILER=/usr/bin/gcc \

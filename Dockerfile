@@ -8,13 +8,19 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 # 作業ディレクトリの作成
 WORKDIR /root/project
+# install build tools
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    cmake \
+    libprotobuf-dev protobuf-compiler \
+    swig
 
 # conda環境の作成とパッケージのインストール
-RUN conda create -n minimal-cell -c conda-forge python=3.7.3 -y && \
-    /bin/bash -c "source activate minimal-cell && \
-    conda install -c conda-forge -y git gcc_linux-64==7.3.0 gxx_linux-64==7.3.0 binutils_linux-64==2.31.1 && \
-    conda install -c anaconda -y hdf5==1.10.4 h5py==2.10.0 protobuf==3.13.0.1 && \
-    conda install -c conda-forge -y numpy==1.19.2 cython==0.29.4 cmake==3.14.0 xlrd swig==4.0.2 jupyter matplotlib ipywidgets tqdm pillow jinja2 scipy pybind11 pandas pytables biopython"
+RUN conda create -n minimal-cell -c conda-forge python=3.7.3 -y &&  \
+    conda install -n minimal-cell -c anaconda "hdf5<1.12" "h5py<3.12" && \
+    conda install -n minimal-cell -c conda-forge -y numpy==1.19.2 cython jupyter matplotlib ipywidgets tqdm pillow jinja2 scipy pybind11 pandas pytables biopython
+
+RUN export LD_LIBRARY_PATH=/opt/conda/envs/minimal-cell/lib:$LD_LIBRARY_PATH
 
 # # Gitやその他必要なパッケージをapt経由でインストール（必要に応じて）
 # RUN apt-get update && apt-get install -y \
@@ -22,8 +28,8 @@ RUN conda create -n minimal-cell -c conda-forge python=3.7.3 -y && \
 #     bzip2 
 
 # Gitリポジトリをクローン
-RUN git clone https://github.com/Luthey-Schulten-Lab/Minimal_Cell.git && \
-    git clone https://github.com/Luthey-Schulten-Lab/Lattice_Microbes.git
+RUN git clone https://github.com/hishidagit/Minimal_Cell_his.git && \
+    git clone https://github.com/hishidagit/Lattice_Microbes_his.git
 
 # コンテナ起動時はbashを起動
 CMD ["/bin/bash"]
