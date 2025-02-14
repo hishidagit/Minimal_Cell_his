@@ -5,7 +5,7 @@ cython==0.29.4
 plotnine
 jupyter
 jupyter_contrib_nbextensions
-pycvodes
+# pycvodes
 sbtab
 escher==1.6.0
 cobra
