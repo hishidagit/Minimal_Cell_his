@@ -13,14 +13,18 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     cmake \
     libprotobuf-dev protobuf-compiler \
-    swig
+    swig \
+    git
 
 # conda環境の作成とパッケージのインストール
 RUN conda create -n minimal-cell -c conda-forge python=3.7.3 -y &&  \
+    # conda install -n minimal-cell -c conda-forge -y sundials libglpk-dev && \
     conda install -n minimal-cell -c anaconda "hdf5<1.12" "h5py<3.12" && \
     conda install -n minimal-cell -c conda-forge -y numpy==1.19.2 cython jupyter matplotlib ipywidgets tqdm pillow jinja2 scipy pybind11 pandas pytables biopython
 
 RUN export LD_LIBRARY_PATH=/opt/conda/envs/minimal-cell/lib:$LD_LIBRARY_PATH
+# write to bashrc
+RUN echo "export LD_LIBRARY_PATH=/opt/conda/envs/minimal-cell/lib:$LD_LIBRARY_PATH" >> ~/.bashrc
 
 # # Gitやその他必要なパッケージをapt経由でインストール（必要に応じて）
 # RUN apt-get update && apt-get install -y \
