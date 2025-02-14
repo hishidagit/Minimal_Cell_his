@@ -6,6 +6,6 @@ plotnine
 jupyter
 jupyter_contrib_nbextensions
 # pycvodes
-sbtab
+sbtab==0.9.71
 escher==1.6.0
 cobra
