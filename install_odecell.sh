@@ -1,3 +1,8 @@
+# successfully installed odecell with 
+#   - SUNDIALS: 6.7.0 (compatible version)
+#   - pycvodes: 0.14.2 (working version)
+#   - Cython: 0.29.4 (required version)
+
 # change pip version
 conda activate minimal-cell
 conda install -n minimal-cell pip==20.3.1
@@ -5,7 +10,7 @@ conda install -n minimal-cell pip==20.3.1
 # install libsundials-dev
 conda install -n minimal-cell -c conda-forge sundials glpk
 
-cd /root/project/Minimal_Cell_his/odecell
+cd ./odecell
 pip install -r requirements.txt
 
 pip install --upgrade cython
