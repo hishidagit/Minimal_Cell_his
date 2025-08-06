@@ -2,6 +2,10 @@
 #   - SUNDIALS: 6.7.0 (compatible version)
 #   - pycvodes: 0.14.2 (working version)
 #   - Cython: 0.29.4 (required version)
+#  - SWIG: 3.0.12 (downgraded from 4.3.1)
+
+#   2. ✅ SWIG Policies: Set compatibility policies (CMAKE_POLICY_DEFAULT_CMP0078:UNINITIALIZED=OLD and
+#   CMAKE_POLICY_DEFAULT_CMP0086:UNINITIALIZED=OLD)
 
 # change pip version
 conda activate minimal-cell
