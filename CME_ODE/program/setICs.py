@@ -126,10 +126,10 @@ def initCentConcs(sim):
 
     for met in centralMets:
         metID = "M_" + met
-        print(metID)
+        # print(metID)
         conc = ComDF_cent.loc[ ComDF_cent["Compound"] == metID, "InitialConcentration" ].values[0]
         parts = int(round(mMtoPart(float(conc))))
-        print(metID,parts)
+        # print(metID,parts)
         sim.defineSpecies([metID])
         sim.addParticles(metID,count=parts)
 

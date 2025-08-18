@@ -889,7 +889,7 @@ for rxnID in lipMetRxnID:
             
             kmID = 'kmc_' + rxnID + '_' + product + '_' + rxnID
     
-            print(kmID)
+            # print(kmID)
     
             km_value = QntDF_lip.loc[ QntDF_lip["Quantity"] == kmID, "Value" ].values[0]
         
@@ -1120,7 +1120,7 @@ RxnDF_Transport = RxnDF_Transport.loc[ RxnDF_Transport.Reaction != "R_Ht" ]
 # Concatonate the Central and transport reaction dataframes.
 
 RxnDF = pd.concat( [RxnDF_CentralMet, RxnDF_Nuclt, RxnDF_Lipid, RxnDF_aaMet, RxnDF_Transport, RxnDF_cofactMet] )
-print(RxnDF)
+# print(RxnDF)
 
 
 # Read quantities in from the quantities dataframe.
@@ -1164,7 +1164,7 @@ for rxnName in transpRxnsList:
 transpRxnsList = ["GLCpts0","GLCpts1","GLCpts2","GLCpts3","GLCpts4","GLYCt","FAt","CHOLt"]
 
 newRxnsDF = RxnDF_Transport.loc[ RxnDF_Transport.Name.isin(transpRxnsList) ]
-newRxnsDF
+# newRxnsDF
 
 
 rxnCounter = 1

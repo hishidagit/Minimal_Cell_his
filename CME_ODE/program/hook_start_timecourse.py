@@ -1,0 +1,236 @@
+"""
+The hook simulation driver for a Hybrid CME-ODE JCVI Syn3A simulation.
+
+Author: David Bianchi
+"""
+
+import Simp as Simp
+import integrate as integrate
+import copy as copy
+import in_out as in_out
+import sys
+import pandas as pd
+import time as timer
+import lm as lm
+import os
+
+# Define our own hybrid CME-ODE solver class derived from the LM Gillespie Direct Solver:
+
+
+class MyOwnSolver(lm.GillespieDSolver):
+    def __init__(self, delt, ode_step, speciesCount, cythonBool, totalTime, procID):
+        """
+        Initialize the ODE hook solver
+
+        Parameters:
+        self, the object pointer
+        delt (float), communication timestep between hook simulation and main LM simulation
+        odestep (float), the maximum stepsize given an Adaptive Timestepping ODE solver
+        speciesCount (species Count), instance of SpeciesCount Class used to pass species count data
+        cythonBool (bool), Should ODE Reaction Solver be compiled with Cython (True, False)
+        procID (str), The Process ID for each simulated "cell".
+
+        Returns:
+        None
+        """
+
+        # Call the constructor for the derived class
+        # Not necessary to use MESolverFactory.setSolver('lm::cme::GillespieDSolver)?
+        lm.GillespieDSolver.__init__(self)
+
+        # Save the initial conditions, for restarting the solver upon a new replicate
+        self.ic = (delt, ode_step, speciesCount, cythonBool, totalTime)
+
+        # The time a which hook solver has been stepped into, initial value = 0
+        self.oldtime = 0.0
+
+        # The process ID for creating flux log files etc.
+        self.procID = str(procID)
+
+        # self.iteration = iteration
+
+        print("initializing solver")
+
+        # Set the initial conditions
+        self.restart()
+
+    def restart(self):
+        """
+        Get the same initial conditions for a new simulation replicate (Restart the Hook)
+
+        Parameters:
+        self, the object pointer
+
+        Returns:
+        None
+        """
+
+        # Set the previous time to be 0, we are starting the simulation
+        self.oldtime = 0.0
+
+        # Deep Copy of all of the initial conditions
+        self.delt = copy.deepcopy(self.ic[0])
+        self.odestep = copy.deepcopy(self.ic[1])
+        self.species = copy.deepcopy(self.ic[2])
+        self.cythonBool = copy.deepcopy(self.ic[3])
+        self.totalTime = copy.deepcopy(self.ic[4])
+
+        print("Done with restart")
+
+    def hookSimulation(self, time):
+        """
+        The hookSimulation method defined here will be called at every frame write
+        time.  The return value is either 0 or 1, which will indicate if we
+        changed the state or not and need the lattice to be copied back to the GPU
+        (In the case of the RDME) before continuing.  If you do not return 1, 
+        your changes will not be reflected.
+
+        Parameters:
+        self, the object pointer
+        time, the current simulation time
+
+        Returns:
+
+        1 (int), if changes should be passed to the main LM Simulation
+        0 (int), if changes should not be passed to the main lm Simulation
+        """
+
+        # We have reached the simulation start time, if doing multiple replicates
+
+        # make a csv file to save concentration data
+        countSaveDir = '../simulations/counts/'
+        if not os.path.exists(countSaveDir):
+            os.makedirs(countSaveDir)
+        countsSavePath = countSaveDir + 'conc_rep-' + self.procID + '.csv'
+
+        # No need to update
+        if (time == 0.0):
+            print("New Replicate", flush=True)
+            self.restart()
+            minute = 0
+
+            # save counts
+            counts = []
+            for met in self.species.particleMap.keys():
+                counts.append(self.species.particleMap[met])
+            with open(countsSavePath, 'w') as f:
+                f.write(time + ',' + ','.join(map(str, counts)) + '\n')
+
+            return 0
+
+        # We are at a CME-ODE communication timestep
+        else:
+
+            # At the first timestep update the needed protein counts
+            if ((time > self.delt) and (time < (self.delt*2.0))):
+                self.species.update(self)
+
+            # Update to current solver species counts
+            start = timer.time()
+            # print("Updating species: ", start)
+            self.species.update(self)
+            end = timer.time()
+            # print("Finished update: ",end)
+            print("Time is: ", time)
+
+            # Initialize and define the reaction model
+            model = Simp.initModel(self.species)
+
+            # Want to get the current values, not necessarily the initial values
+            initVals = integrate.getInitVals(model)
+
+            # Boolean control of cython compilation, versus scipy ODE solvers
+            cythonBool = self.cythonBool
+
+            if (cythonBool == True):
+                solver = integrate.setSolver(model)
+
+            else:
+                solver = integrate.noCythonSetSolver(model)
+
+            # Run the integrator
+            res = integrate.runODE(
+                initVals, time, self.oldtime, self.odestep, solver, model)
+
+            resFinal = res[-1, :]
+
+            resStart = res[0, :]
+
+            # save counts
+            counts = []
+            for met in self.species.particleMap.keys():
+                counts.append(self.species.particleMap[met])
+            with open(countsSavePath, 'a') as f:
+                f.write(str(time) + ',' + ','.join(map(str, counts)) + '\n')
+
+            if (int(time)/100).is_integer():
+                print('Progress: ' + str(int(time)) +
+                      ' out of ' + str(int(self.totalTime)))
+
+            if (int(time)/60).is_integer():
+                minute = int(int(time)/60)
+                currentFluxes = solver.calcFlux(0, resStart)
+    #                         print("Is INF:", np.where( np.isinf(finalFluxes) ) )
+
+                # Create list of reactions and fluxes
+                fluxList = []
+                for indx, rxn in enumerate(model.getRxnList()):
+                    fluxList.append((rxn.getID(), currentFluxes[indx]))
+
+                fluxDF = pd.DataFrame(fluxList)
+                fluxFileName = '../simulations/fluxes/' + 'rep-' + self.procID + \
+                    '-fluxDF-start.csv'  # '/fluxDF_'+str(minute)+'min_start.csv'
+
+                fluxDF.to_csv(fluxFileName, header=False, mode='a')
+
+                minute = int(int(time)/60)
+                currentFluxes = solver.calcFlux(0, resFinal)
+
+                # Create list of reactions and fluxes
+                fluxList = []
+                for indx, rxn in enumerate(model.getRxnList()):
+                    fluxList.append((rxn.getID(), currentFluxes[indx]))
+
+                fluxDF = pd.DataFrame(fluxList)
+
+                fluxFileName = '../simulations/fluxes/' + \
+                    'rep-' + self.procID + '-fluxDF_'+'min_end.csv'
+
+                fluxDF.to_csv(fluxFileName, header=False, mode='a')
+
+                fluxFileName = '../simulations/fluxes/' + 'rep-' + \
+                    self.procID + '-fluxDF.csv'  # +str(minute)+'min.csv'
+
+                fluxDF.to_csv(fluxFileName, header=False, mode='a')
+
+                print('Saved fluxes at ' + str(minute) + ' minutes.')
+
+            if time > self.totalTime-self.delt:
+                print(time)
+                finalFluxes = solver.calcFlux(0, resFinal)
+
+                # Create list of reactions and fluxes
+                fluxList = []
+                for indx, rxn in enumerate(model.getRxnList()):
+                    fluxList.append((rxn.getID(), finalFluxes[indx]))
+
+                fluxDF = pd.DataFrame(fluxList)
+                fnStr = '../simulations/fluxes/' + 'rep-' + self.procID + '-fluxDF_final.csv'
+                fluxDF.to_csv(fnStr, header=False, mode='a')
+                print("CALLING WITH MINUTE at -1 to get minute 1")
+                minute = -1
+                in_out.outMetCsvs(self.species, minute, self.procID)
+
+                print('Saved final fluxes.')
+
+            # Set the previous time to the current time
+            self.oldtime = time
+
+            # Write the results
+            in_out.writeResults(self.species, model,
+                                resFinal, time, self.procID)
+
+            # Update the system with changes
+            return 1
+
+        return 0

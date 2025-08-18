@@ -125,10 +125,10 @@ class MyOwnSolver(lm.GillespieDSolver):
                 #Simp.upIC(self.species)
 
             # Update to current solver species counts
-            # start = timer.time()
+            start = timer.time()
             # print("Updating species: ", start)
-            # self.species.update(self)
-            # end = timer.time()
+            self.species.update(self)
+            end = timer.time()
             # print("Finished update: ",end)
             print("Time is: ",time)
 

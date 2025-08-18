@@ -115,10 +115,10 @@ class MyOwnSolver(lm.GillespieDSolver):
 
                     # Update to current solver species counts
                     start = timer.time()
-                    print("Updating species: ", start)
+                    # print("Updating species: ", start)
                     self.species.update(self)
                     end = timer.time()
-                    print("Finished update: ",end)
+                    # print("Finished update: ",end)
                     print("Time is: ",time)
 
                     # Initialize and define the reaction model
