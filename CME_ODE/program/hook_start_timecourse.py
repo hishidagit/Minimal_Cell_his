@@ -75,6 +75,10 @@ class MyOwnSolver(lm.GillespieDSolver):
         self.cythonBool = copy.deepcopy(self.ic[3])
         self.totalTime = copy.deepcopy(self.ic[4])
 
+        # Pre-compile the solver once per replicate to avoid recompilation every timestep
+        self.cached_solver = None
+        self.cached_model = None
+
         print("Done with restart")
 
     def hookSimulation(self, time):
@@ -142,11 +146,17 @@ class MyOwnSolver(lm.GillespieDSolver):
             # Boolean control of cython compilation, versus scipy ODE solvers
             cythonBool = self.cythonBool
 
-            if (cythonBool == True):
-                solver = integrate.setSolver(model)
+            # Cache the solver to avoid recompilation every timestep
+            if self.cached_solver is None or self.cached_model is None:
+                print(f"Compiling solver at time {time}...")
+                if (cythonBool == True):
+                    self.cached_solver = integrate.setSolver(model)
+                else:
+                    self.cached_solver = integrate.noCythonSetSolver(model)
+                self.cached_model = model
+                print("Solver compilation complete.")
 
-            else:
-                solver = integrate.noCythonSetSolver(model)
+            solver = self.cached_solver
 
             # Run the integrator
             res = integrate.runODE(

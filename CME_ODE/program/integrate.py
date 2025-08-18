@@ -11,17 +11,18 @@ import odecell
 import numpy as np
 import time as timer
 
-### Constants
-step = 0.1 # s
-atol = 1e-6 # tolerance
-rtol = 1e-6 # tolerance
+# Constants
+step = 0.1  # s
+atol = 1e-6  # tolerance
+rtol = 1e-6  # tolerance
+
 
 def setSolver(model):
     """
     Set the solver for the model
 
     Parameters:
-         
+
         (odecell.model) - the model object
 
     Returns:
@@ -30,26 +31,32 @@ def setSolver(model):
 
     """
 
-    ## We are NOT building for odeint (gives us more room to chose between CVODES and SciPy-ODE).
-    ## We are NOT using a jacobian, since we do not have the partial derivatives for all rate forms.
-    ## We are building with Cython for speed, this is a big model.
+    # We are NOT building for odeint (gives us more room to chose between CVODES and SciPy-ODE).
+    # We are NOT using a jacobian, since we do not have the partial derivatives for all rate forms.
+    # We are building with Cython for speed, this is a big modelb.
 
     # Builds the solver using a *Functor* interface
-    solvFunctor = odecell.solver.ModelSolver(model) 
-    solvFunctor.prepareFunctor() #OG uncomment
+    solvFunctor = odecell.solver.ModelSolver(model)
+    solvFunctor.prepareFunctor()  # OG uncomment
 
     # Set verbosity to 0 for now, below uncomment OG
-    rxnIdList = solvFunctor.buildCall(odeint=False, useJac=False, cythonBuild=True, functor=True, verbose=0)
-    #rxnIdList = solvFunctor.buildCall(odeint=True, useJac=False, cythonBuild=False, functor=False, transpJac=False, verbose=0, noBuild=True)
+    rxnIdList = solvFunctor.buildCall(
+        odeint=False, useJac=False, cythonBuild=True, functor=True, verbose=0)
+    # rxnIdList = solvFunctor.buildCall(odeint=True, useJac=False, cythonBuild=False, functor=False, transpJac=False, verbose=0, noBuild=True)
 
     # Sets up the actual solver, with updated parameter values
-    #modelOptSpace, initParamVals=model.getOptSpace()
-    initParamVals = model.getInitVals()
-    solvFunctor = solvFunctor.functor( np.asarray(initParamVals, dtype=np.double) )
+    # After prepareFunctor(), the actual numeric parameter values are stored in solvFunctor.__currParVals
+    # while model.getOptSpace() returns string references like 'self.params[0]'
+    initParamVals = solvFunctor._ModelSolver__currParVals  # Use preserved numeric values
+    print(f"DEBUG: Passing {len(initParamVals)} parameters to Cython functor")
+    solvFunctor = solvFunctor.functor(
+        np.asarray(initParamVals, dtype=np.double))
 
     return solvFunctor
 
-### NOTE: Have to get a callable f(y,t) for scipy.ode without creating the functor
+# NOTE: Have to get a callable f(y,t) for scipy.ode without creating the functor
+
+
 def noCythonSetSolver(model):
     """
     Set the solver without compiling via Cython
@@ -66,20 +73,24 @@ def noCythonSetSolver(model):
     # Construct a Model Solver Object
     solver = odecell.solver.ModelSolver(model)
 
-    rxnIdList =solver.buildCall(verbose=0, useJac=False, transpJac=0, nocheck=False, odeint=False, cythonBuild=False, functor=False, noBuild=True)
+    rxnIdList = solver.buildCall(verbose=0, useJac=False, transpJac=0, nocheck=False,
+                                 odeint=False, cythonBuild=False, functor=False, noBuild=True)
 
-    return solver 
+    return solver
+
 
 def f_wrap(solv, t, y, dydt):
 
-    #solv = setSolver(model)
-    dydt[:] = solv(0,np.asarray(y))[:]
+    # solv = setSolver(model)
+    dydt[:] = solv(0, np.asarray(y))[:]
+
 
 def getInitVals(model):
-    y0=model.getInitVals()
+    y0 = model.getInitVals()
     return y0
 
-def runODE(y0,time,oldTime,ts,solv,model):
+
+def runODE(y0, time, oldTime, ts, solv, model):
     """
     Run the ODE Model after getting initial conditions
 
@@ -97,7 +108,7 @@ def runODE(y0,time,oldTime,ts,solv,model):
     results (np.array): the array containing ODE Simulation Results (Maybe only the last time should be passed?)
     """
 
-    integrator = integrate.ode(solv)#, solv.calcJac)
+    integrator = integrate.ode(solv)  # , solv.calcJac)
 
     # TODO: Set which integrator to use (Appears vode is default), lsoda adaptive
     lsodaBool = True
@@ -106,24 +117,25 @@ def runODE(y0,time,oldTime,ts,solv,model):
 
     integrator.set_initial_value(model.getInitVals())
 
-    ### With fixed timestepping
+    # With fixed timestepping
     step = ts
-    delt = round(time-oldTime,2) # Get the deltaT we have accumulated between communication steps (May be greater than tau - user defined)
-    totalTime = max(delt,ts) #time+
-    results = np.empty((0,len(model.getInitVals())), float)
+    # Get the deltaT we have accumulated between communication steps (May be greater than tau - user defined)
+    delt = round(time-oldTime, 2)
+    totalTime = max(delt, ts)  # time+
+    results = np.empty((0, len(model.getInitVals())), float)
 
     startIntTime = timer.time()
-    #print("Integration started at: ",startIntTime)
+    # print("Integration started at: ",startIntTime)
 
-    while integrator.successful() and (integrator.t < totalTime) and (np.isclose([integrator.t],[totalTime])==([False])):
-        #print("ode step time is: ", integrator.t)
+    while integrator.successful() and (integrator.t < totalTime) and (np.isclose([integrator.t], [totalTime]) == ([False])):
+        # print("ode step time is: ", integrator.t)
         currConcentration = integrator.integrate(integrator.t + step)
         # Silence integrator output for now
-        #print(integrator.t, currConcentration)
-        results = np.append(results, [np.asarray(currConcentration)], axis=0 )
+        # print(integrator.t, currConcentration)
+        results = np.append(results, [np.asarray(currConcentration)], axis=0)
 
     endIntTime = timer.time()
-    #print("Total Integration time was: ",endIntTime-startIntTime, " per step")
+    # print("Total Integration time was: ",endIntTime-startIntTime, " per step")
 #     results = results[-1,:]
 
     # Return only the last timestep for the results, this is all thats really needed

@@ -22,7 +22,7 @@ from pickle import load, dump
 import cython
 import importlib, subprocess
 import pyximport, os
-pyximport.install(build_dir=os.getcwd()+'/pyxbld',setup_args={'include_dirs':np.get_include()}, reload_support=True)
+pyximport.install(build_dir=os.getcwd()+'/pyxbld',setup_args={'include_dirs':np.get_include(), 'define_macros': [('NPY_NO_DEPRECATED_API', 'NPY_1_7_API_VERSION')]}, reload_support=True)
 
 class ModelSolver():
     
