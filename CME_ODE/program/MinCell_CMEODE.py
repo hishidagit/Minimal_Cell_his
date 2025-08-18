@@ -197,33 +197,33 @@ sim=CME.CMESimulation(name="Min Cell Genetic Processes")
 
 
 PtnMetDF = pd.read_csv("../model_data/protein_metabolites_frac.csv")
-PtnMetDF
+# PtnMetDF
 
 
 memPtnMetDF = pd.read_csv("../model_data/membrane_protein_metabolites.csv")
-memPtnMetDF
+# memPtnMetDF
 
 riboPtnMetDF = pd.read_csv("../model_data/ribo_protein_metabolites.csv")
-riboPtnMetDF
+# riboPtnMetDF
 
 
 RNApolPtnMetDF = pd.read_csv("../model_data/RNApol_proteins.csv")
-RNApolPtnMetDF
+# RNApolPtnMetDF
 
 
 
 rrnaMetDF_1 = pd.read_csv("../model_data/rrna_metabolites_1.csv")
-rrnaMetDF_1
+# rrnaMetDF_1
 
 
 
 rrnaMetDF_2 = pd.read_csv("../model_data/rrna_metabolites_2.csv")
-rrnaMetDF_2
+# rrnaMetDF_2
 
 
 
 trnaMetDF = pd.read_csv("../model_data/trna_metabolites_synthase.csv")
-trnaMetDF
+# trnaMetDF
 
 
 
@@ -1696,7 +1696,7 @@ mySpecies = species_counts.SpeciesCounts(sim)
 totalTime = simTime
 
 
-with open(my_log_file, 'w') as f, redirect_stdout(f):
+with open(my_log_file, 'w') as f: #, redirect_stdout(f):
     odeHookSolver = hook.MyOwnSolver(delt, odestep, mySpecies, cythonBool, totalTime,str(procid))
 
     sim.runSolver(filename=fn,solver=odeHookSolver,replicates=1, cudaDevices=None)

@@ -1,7 +1,10 @@
 #!/usr/bin/env python
 # coding: utf-8
+# python3 MinCell_CMEODE.py -procid 1 -t 1  ### args (time should be 1 minute here, to set initial conditions)
+# python3 MinCell_restart.py -procid 1 -t 2 -rs 1 ### args (the time here should be the desired simulation time)
 
-
+# nohup python3 MinCell_CMEODE.py -procid $id -t $ti > output.log 2>&1 &
+# nohup python3 MinCell_restart.py -procid $id -t $tres -rs $tint > output.log 2>&1 &
 # Import needed modules
 from pyLM import *
 from pyLM.units import *
@@ -1832,8 +1835,8 @@ for sTime in np.arange(1,runTime+1,1):
     resTime = simTime
 
 
-    with open(my_log_file, 'w') as f, redirect_stdout(f):
-        odeHookSolver = hook.MyOwnSolver(delt, odestep, mySpecies, cythonBool, resTime,str(procid))#,iteration)
+    with open(my_log_file, 'w') as f: #, redirect_stdout(f):
+        odeHookSolver = hook.MyOwnSolver(delt, odestep, mySpecies, cythonBool, resTime,str(procid),iteration)
 
         sim.runSolver(filename=fn,solver=odeHookSolver,replicates=1, cudaDevices=None)
 

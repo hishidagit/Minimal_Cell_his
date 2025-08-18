@@ -19,7 +19,7 @@ import lm as lm
 class MyOwnSolver(lm.GillespieDSolver):
 
 
-    def __init__(self, delt, ode_step, speciesCount,cythonBool,resTime,procID):
+    def __init__(self, delt, ode_step, speciesCount,cythonBool,resTime,procID,iteration=None):
 
         """
         Initialize the ODE hook solver
@@ -32,7 +32,7 @@ class MyOwnSolver(lm.GillespieDSolver):
         cythonBool (bool), Should ODE Reaction Solver be compiled with Cython (True, False)
         resTime (float), the total simulation time of each CME Hook Simulation = Restart Time (in minutes)
         procID (str), The Process ID for each simulated "cell".
-        
+        iteration (int), The current minute/iteration number for global tracking
 
         Returns:
         None
@@ -50,6 +50,9 @@ class MyOwnSolver(lm.GillespieDSolver):
 
         # The process ID for creating flux log files etc.
         self.procID = str(procID)
+        
+        # Track the global minute number across restart iterations
+        self.global_minute = iteration if iteration is not None else 1
 
         print("initializing solver")
 
@@ -122,11 +125,11 @@ class MyOwnSolver(lm.GillespieDSolver):
                 #Simp.upIC(self.species)
 
             # Update to current solver species counts
-            start = timer.time()
-            print("Updating species: ", start)
-            self.species.update(self)
-            end = timer.time()
-            print("Finished update: ",end)
+            # start = timer.time()
+            # print("Updating species: ", start)
+            # self.species.update(self)
+            # end = timer.time()
+            # print("Finished update: ",end)
             print("Time is: ",time)
 
             # Initialize and define the reaction model
@@ -152,62 +155,44 @@ class MyOwnSolver(lm.GillespieDSolver):
             
             resStart = res[0,:]
             
-            if (int(time)/100).is_integer():
-                print('Progress: ' + str(int(time)) + ' out of ' + str(int(self.resTime)))
+            # Progress reporting every 10 seconds within each minute
+            if (int(time) % 10) == 0 and time > 0:
+                print(f'Progress: minute {self.global_minute}, time {int(time)}/60 seconds')
             
-            if (int(time)/60).is_integer():
-                minute = int(int(time)/60)
-                currentFluxes = solver.calcFlux(0, resStart )
-
-                # Create list of reactions and fluxes
-                fluxList = []
-                for indx,rxn in enumerate(model.getRxnList()):
-                    fluxList.append( (rxn.getID(), currentFluxes[indx]) )
-
-                fluxDF = pd.DataFrame(fluxList)
-
-                fluxFileName = '../simulations/fluxes/' + 'rep-' + self.procID + '-fluxDF.csv' #'/fluxDF_'+str(self.iter)+'min_start.csv'
-
-                fluxDF.to_csv(fluxFileName,header=False,mode='a')
+            # Save flux data at the end of each 1-minute interval
+            # For restart simulations, this happens when time approaches 60 seconds
+            if time >= (self.resTime - self.delt):
+                print(f"Saving flux data for minute {self.global_minute} at time {time}")
                 
-                minute = int(int(time)/60)
-                currentFluxes = solver.calcFlux(0, resFinal )
+                # Calculate fluxes at the start and end of this interval
+                currentFluxes_start = solver.calcFlux(0, resStart)
+                currentFluxes_end = solver.calcFlux(0, resFinal)
 
-                # Create list of reactions and fluxes
-                fluxList = []
-                for indx,rxn in enumerate(model.getRxnList()):
-                    fluxList.append( (rxn.getID(), currentFluxes[indx]) )
+                # Save start-of-interval fluxes
+                fluxList_start = []
+                for indx, rxn in enumerate(model.getRxnList()):
+                    fluxList_start.append((rxn.getID(), currentFluxes_start[indx]))
 
-                fluxDF = pd.DataFrame(fluxList)
+                fluxDF_start = pd.DataFrame(fluxList_start)
+                fluxFileName_start = '../simulations/fluxes/' + 'rep-' + self.procID + '-fluxDF-start.csv'
+                fluxDF_start.to_csv(fluxFileName_start, header=False, mode='a')
 
-                fluxFileName = '../simulations/fluxes/' + 'rep-' + self.procID + '-fluxDF-end.csv' #'/fluxDF_'+str(self.iter)+'min_end.csv'
+                # Save end-of-interval fluxes (main flux file)
+                fluxList_end = []
+                for indx, rxn in enumerate(model.getRxnList()):
+                    fluxList_end.append((rxn.getID(), currentFluxes_end[indx]))
 
-                fluxDF.to_csv(fluxFileName,header=False,mode='a')
+                fluxDF_end = pd.DataFrame(fluxList_end)
                 
+                # Save to the main final flux file with global minute tracking
+                fluxFileName_final = '../simulations/fluxes/' + 'rep-' + self.procID + '-fluxDF_final.csv'
+                fluxDF_end.to_csv(fluxFileName_final, header=False, mode='a')
+                
+                # Also save to a per-minute flux file for compatibility
+                fluxFileName_minute = '../simulations/fluxes/' + 'rep-' + self.procID + '-fluxDF.csv'
+                fluxDF_end.to_csv(fluxFileName_minute, header=False, mode='a')
 
-                fluxFileName = '../simulations/fluxes/' + 'rep-' + self.procID + '-fluxDF.csv' #'/fluxDF_'+str(self.iter)+'min.csv'
-
-                fluxDF.to_csv(fluxFileName,header=False,mode='a')
-
-                print('Saved fluxes at ' + str(minute) + ' minutes.')
-            
-                print('Saved final fluxes.')
-
-
-            if time > (self.resTime-self.delt):
-                print(time)
-                minute = int(int(time)/60)
-                finalFluxes = solver.calcFlux(0, resFinal )
-
-                # Create list of reactions and fluxes
-                fluxList = []
-                for indx,rxn in enumerate(model.getRxnList()):
-                    fluxList.append( (rxn.getID(), finalFluxes[indx]) )
-
-                fluxDF = pd.DataFrame(fluxList)
-                fnStr='../simulations/fluxes/'+ 'rep-' + self.procID + '-fluxDF_final.csv' #'/' + str(self.iter) + 'fluxDF_final.csv'
-                print("Writing Final Fluxes and Csvs for Restart")
-                fluxDF.to_csv(fnStr,index=False,header=False,mode='a')
+                print(f'Saved fluxes for minute {self.global_minute}.')
 
 
             # Get the previous time in minutes
