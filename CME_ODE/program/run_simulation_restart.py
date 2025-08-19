@@ -5,6 +5,7 @@
 
 # nohup python3 MinCell_CMEODE.py -procid $id -t $ti > output.log 2>&1 &
 # nohup python3 MinCell_restart.py -procid $id -t $tres -rs $tint > output.log 2>&1 &
+# nohup python3 run_simulation_restart.py > output.log 2>&1 &
 # Import needed modules
 from pyLM import *
 from pyLM.units import *
@@ -39,13 +40,16 @@ import importlib
 from collections import defaultdict, OrderedDict
 
 import numpy as np
-import hook_restart as hook
+import hook_restart_timecourse as hook
 import sys
 import lm as lm
 import species_counts as species_counts
 from pyLM import *
 
 import time as timer
+
+# Global solver cache to avoid recompilation across simulation iterations
+_global_solver_cache = {'solver': None, 'compiled': False}
 
 # # Argument parsing for parallel runs
 # import argparse
@@ -63,7 +67,7 @@ import time as timer
 # st = int(args.restartTime)  # in minutes
 
 procid = 3
-runTime = 10
+runTime = 360
 st = 1
 
 # Use the process ID to seed the random number generation
@@ -1800,7 +1804,7 @@ for sTime in np.arange(1, runTime+1, 1):
 
     # Compile with Cython or NO?
     # True #False # For smaller system no cython (scipy.ode)
-    cythonBool = False
+    cythonBool = True
 
     mySpecies = species_counts.SpeciesCounts(sim)
 
